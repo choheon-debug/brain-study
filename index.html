@@ -958,7 +958,7 @@ function viewMSec(arg = {}) {
 /* ---------- 🤖 AI 튜터 ----------
    교재의 '잘 설계된 AI 튜터' 원칙대로: 튜터는 질문·채점·힌트만, 떠올리는 건 내가.
    서버(Vercel)가 교재 본문을 근거로 답해요. 키는 서버에만 있어요. */
-const TUTOR_URL = /\.vercel\.app$/.test(location.hostname) ? "/api/tutor" : "https://brain-study.vercel.app/api/tutor";
+const TUTOR_URL = /\.vercel\.app$/.test(location.hostname) ? "/api/tutor" : "https://brain-study-six.vercel.app/api/tutor";
 const TUTOR_N = 5, TUTOR_DAY = 5;
 let tut = null;
 const tutS = () => (S.tutor = S.tutor || { due: [], log: [], day: { d: "", n: 0 } });

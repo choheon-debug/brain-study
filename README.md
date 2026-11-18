@@ -16,5 +16,5 @@
 ## 🤖 AI 튜터 (Vercel 서버)
 - `api/tutor.js`: Claude API를 부르는 Vercel 함수. 교재 본문(`api/_book.js`, data.js에서 생성)만 근거로 질문·채점·힌트를 줘요.
 - 키는 Vercel 환경변수 `ANTHROPIC_API_KEY`에만 넣어요. 앱(휴대폰)에는 키가 없어요.
-- 앱은 GitHub Pages에서 열려도 `https://brain-study.vercel.app/api/tutor`로 물어봐요 (Vercel 주소가 다르면 index.html의 `TUTOR_URL`을 바꿔요).
+- 앱은 GitHub Pages에서 열려도 `https://brain-study-six.vercel.app/api/tutor`로 물어봐요 (Vercel 주소가 다르면 index.html의 `TUTOR_URL`을 바꿔요).
 - 보호 장치: 허용된 주소에서만 받기, 10분에 40번(서버), 하루 5번 연습(기기), 글자 수·대화 길이 제한. Anthropic Console에서 월 사용 한도도 꼭 정해 두세요.
