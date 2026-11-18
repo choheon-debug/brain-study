@@ -992,7 +992,7 @@ function viewTutor() {
   if (done && fin && !tut.saved) tutFinish();
   const bubbles = tut.turns.filter(t => !t.hidden).map(t => t.role === "user"
     ? `<div class="tb me">${t.text === "[정답 보기]" ? "💡 정답을 알려 주세요" : esc(t.text)}</div>`
-    : `<div class="tb ai">${t.data.verdict && t.data.verdict !== "none" ? `<b class="tv ${t.data.verdict}">${{ correct: "⭕ 맞았어요", partial: "🔺 반쯤 맞았어요", wrong: "❌ 아직이에요" }[t.data.verdict]}</b><br>` : ""}${esc(t.data.say)}${t.data.ref ? `<button class="tref" data-tr="${esc(t.data.ref)}">📖 ${esc(t.data.ref)}</button>` : ""}</div>`).join("");
+    : `<div class="tb ai">${t.data.verdict && t.data.verdict !== "none" ? `<b class="tv ${t.data.verdict}">${{ correct: "⭕ 맞았어요", partial: "🔺 반쯤 맞았어요", wrong: "❌ 아직이에요" }[t.data.verdict]}</b><br>` : ""}${esc(t.data.say)}${t.data.ref && (t.data.verdict !== "none" || t.data.finished) ? `<button class="tref" data-tr="${esc(t.data.ref)}">📖 ${esc(t.data.ref)}</button>` : ""}</div>`).join("");
   const ok = tut.res.filter(r => r.v === "correct").length;
   $("#view").innerHTML = head("🤖 AI 튜터", `${tut.secs.map(n => n + "절").join("·")} · ${Math.min(tut.res.length + (fin ? 0 : 1), TUTOR_N)}/${TUTOR_N}문제`, "home") + `
   <section class="card tchat" id="tChat">${bubbles}${tut.busy ? `<div class="tb ai"><span class="tdots">튜터가 생각 중이에요</span></div>` : ""}</section>
