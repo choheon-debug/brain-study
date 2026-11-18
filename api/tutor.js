@@ -2,7 +2,7 @@
 // 교재 내용만 근거로, 답을 먼저 주지 않고 학생이 스스로 떠올리게 질문하는 튜터.
 // 키(ANTHROPIC_API_KEY)는 Vercel 환경변수에만 있고, 휴대폰으로는 절대 보내지 않는다.
 import Anthropic from "@anthropic-ai/sdk";
-import { BOOK } from "./_book.js";
+import { BOOKS } from "./_books.js";
 
 const MODEL = "claude-opus-5-5";
 const ALLOWED_ORIGINS = ["https://choheon-debug.github.io"];
@@ -33,12 +33,13 @@ const SCHEMA = {
   additionalProperties: false,
 };
 
-const RULES = `당신은 「뇌과학으로 배우는 학습법」 교재로 공부하는 학습자를 돕는 AI 튜터입니다. 이 교재가 소개한 '잘 설계된 AI 튜터'처럼 행동하세요. 학습자는 휴대폰으로 짧게 답하는 일반인입니다.
+const RULES = (B) => `당신은 「${B.title}」 교재로 공부하는 학습자를 돕는 AI 튜터입니다. 인출 연습 원칙에 맞춰 설계된 튜터처럼 행동하세요. 학습자는 휴대폰으로 짧게 답하는 일반인입니다.${B.note ? "\n" + B.note : ""}
 
 가장 중요한 원칙: 떠올리는 일은 학습자가 하고, 당신은 질문하고, 채점하고, 힌트를 줍니다.
 - 한 번에 질문 하나만 냅니다. 객관식 보기를 주지 말고, 학습자가 직접 떠올려 짧게 답할 수 있는 질문을 냅니다(핵심 개념의 뜻, 실험 결과 수치, 원리를 생활에 적용하기 등).
 - 학습자가 답하기 전에는 정답이나 정답을 그대로 드러내는 힌트를 말하지 않습니다.
 - 채점은 뜻이 맞는지로 판단합니다. 표현이 달라도 핵심이 맞으면 correct, 일부만 맞으면 partial, 틀리거나 모른다고 하면 wrong입니다. 맞춤법은 따지지 않습니다.
+- 숫자(비율·온도·시간·횟수·점수 등)를 묻는 질문은 교재 수치와 같거나 교재가 허용한 범위 안일 때만 correct입니다. 가깝지만 다르면 partial로 하고 더 정확히 떠올리게 합니다.
 - partial이나 wrong이면 정답을 말하지 말고, 무엇이 빠졌는지 방향만 알려 주는 힌트를 한 단계 주고 다시 떠올려 보게 합니다(finished는 false). 교재의 비유나 예를 힌트로 쓰면 좋습니다.
 - 학습자가 "[정답 보기]"를 보내거나, 같은 질문에서 두 번 힌트를 받고도 못 맞히면 그때 정답과 짧은 설명을 알려 주고 finished를 true로 합니다.
 - correct이면 칭찬은 한 문장으로 짧게, 왜 맞는지 핵심을 한 문장 덧붙이고 finished를 true로 합니다. 이때 다음 질문은 아직 내지 않습니다.
@@ -66,6 +67,7 @@ function cors(req, res) {
 }
 
 function clean(body) {
+  const app = BOOKS[body?.app] ? body.app : "brain", BOOK = BOOKS[app].secs;
   const secs = [...new Set((Array.isArray(body?.secs) ? body.secs : []).map(Number))].filter(n => BOOK[n]).slice(0, MAX_SECS);
   if (!secs.length) return { error: "공부할 절을 골라 주세요." };
   const turns = Array.isArray(body?.turns) ? body.turns.slice(-MAX_TURNS) : [];
@@ -77,7 +79,7 @@ function clean(body) {
   if (!messages.length || messages[messages.length - 1].role !== "user") return { error: "보낼 말이 없어요." };
   if (messages[0].role !== "user") messages.unshift({ role: "user", content: "[시작]" });
   const due = (Array.isArray(body?.due) ? body.due : []).slice(0, 5).map(q => String(q).slice(0, 200));
-  return { secs, messages, due };
+  return { app, secs, messages, due };
 }
 
 let client;
@@ -92,6 +94,7 @@ export default async function handler(req, res) {
   const c = clean(typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body);
   if (c.error) return res.status(400).json({ error: c.error });
 
+  const B = BOOKS[c.app], BOOK = B.secs;
   const book = c.secs.map(n => `<절 번호="${n}">\n${BOOK[n].x}\n</절>`).join("\n\n");
   const start = `이번에 공부할 절: ${c.secs.map(n => `제${n}절 ${BOOK[n].t}`).join(", ")}. 한 번에 5문제를 풉니다.` +
     (c.due.length ? `\n[복습할 문제] (3일 전에 틀린 문제예요. 먼저 다시 내 주세요)\n- ${c.due.join("\n- ")}` : "");
@@ -109,7 +112,7 @@ export default async function handler(req, res) {
       betas: ["server-side-fallback-2026-07-01"],
       fallbacks: "default",
       output_config: { effort: "low", format: { type: "json_schema", schema: SCHEMA } },
-      system: [{ type: "text", text: `${RULES}\n\n<교재>\n${book}\n</교재>`, cache_control: { type: "ephemeral" } }],
+      system: [{ type: "text", text: `${RULES(B)}\n\n<교재>\n${book}\n</교재>`, cache_control: { type: "ephemeral" } }],
       messages,
     });
     if (r.stop_reason === "refusal") return res.status(200).json({ say: "이 질문에는 답하기 어려워요. 교재 공부로 돌아가 볼까요?", verdict: "none", question: "", ref: "", finished: false });

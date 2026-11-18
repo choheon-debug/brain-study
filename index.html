@@ -1032,7 +1032,7 @@ async function tutSend(text, hidden) {
   const isAns = !hidden && text !== "[정답 보기]";
   tut.turns.push({ role: "user", text, hidden }); tut.busy = true; tut.err = null; viewTutor();
   try {
-    const r = await fetch(TUTOR_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ secs: tut.secs, turns: tut.turns.map(t => t.role === "user" ? { role: "user", text: t.text } : { role: "assistant", data: t.data }), due: tut.due }) });
+    const r = await fetch(TUTOR_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ app: "brain", secs: tut.secs, turns: tut.turns.map(t => t.role === "user" ? { role: "user", text: t.text } : { role: "assistant", data: t.data }), due: tut.due }) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok || !j.say) throw new Error(j.error || "튜터 연결에 실패했어요. 인터넷을 확인하고 다시 해 주세요.");
     tut.turns.push({ role: "assistant", data: j });
