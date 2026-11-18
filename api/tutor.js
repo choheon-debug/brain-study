@@ -99,7 +99,9 @@ export default async function handler(req, res) {
 
   if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: "서버에 AI 키가 아직 없어요. Vercel의 Environment Variables에 ANTHROPIC_API_KEY를 넣고 Redeploy 해 주세요." });
   try {
-    client ||= new Anthropic();
+    // 복사할 때 따라 들어간 빈칸·줄바꿈·따옴표를 지운다
+    const key = String(process.env.ANTHROPIC_API_KEY).trim().replace(/^["']|["']$/g, "");
+    client ||= new Anthropic({ apiKey: key });
     const r = await client.beta.messages.create({
       model: MODEL,
       max_tokens: 4000,
@@ -117,7 +119,10 @@ export default async function handler(req, res) {
     return res.status(200).json(data);
   } catch (e) {
     if (e instanceof Anthropic.RateLimitError) return res.status(429).json({ error: "지금 사용하는 사람이 많아요. 잠시 뒤 다시 해 주세요." });
-    if (e instanceof Anthropic.AuthenticationError) return res.status(500).json({ error: "서버 설정(키)에 문제가 있어요. 앱 관리자에게 알려 주세요." });
+    if (e instanceof Anthropic.AuthenticationError || e instanceof Anthropic.PermissionDeniedError) {
+      const k = String(process.env.ANTHROPIC_API_KEY).trim();
+      return res.status(500).json({ error: `AI 키가 거절됐어요 (${e.status}). 키 확인: 앞부분 ${k.slice(0, 7)}… · 길이 ${k.length}자. 자세한 이유: ${String(e.message).slice(0, 160)}` });
+    }
     if (e instanceof Anthropic.APIError) { console.error("anthropic", e.status, e.message); return res.status(502).json({ error: `AI 연결에 문제가 생겼어요 (${e.status}): ${String(e.message).slice(0, 120)}` }); }
     console.error("tutor error", e);
     return res.status(500).json({ error: `튜터 서버에서 문제가 생겼어요: ${String(e?.message || e).slice(0, 120)}` });
