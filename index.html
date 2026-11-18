@@ -996,6 +996,7 @@ function viewTutor() {
   const ok = tut.res.filter(r => r.v === "correct").length;
   $("#view").innerHTML = head("🤖 AI 튜터", `${tut.secs.map(n => n + "절").join("·")} · ${Math.min(tut.res.length + (fin ? 0 : 1), TUTOR_N)}/${TUTOR_N}문제`, "home") + `
   <section class="card tchat" id="tChat">${bubbles}${tut.busy ? `<div class="tb ai"><span class="tdots">튜터가 생각 중이에요</span></div>` : ""}</section>
+  ${tut.err && !tut.busy ? `<section class="card" style="border:1px solid #fecaca;background:#fef2f2"><b>⚠️ 튜터와 연결하지 못했어요</b><p class="sm" style="margin:6px 0 10px">${esc(tut.err)}</p><button class="btn b-teal" id="tRetry" style="padding:10px">↻ 다시 시도</button></section>` : ""}
   ${tut.saved ? tutSummary() : tut.busy || !last ? "" : fin ? `<button class="btn b-green" id="tNext">${done ? "결과 보기" : "다음 문제 ›"}</button>` : `
   <section class="card">
     <div class="chips" style="margin-bottom:8px">${[["sure", "😎 자신 있어요"], ["unsure", "🤔 헷갈려요"], ["none", "😶 모르겠어요"]].map(([k, l]) => `<button class="chip ${tut.conf === k ? "on" : ""}" data-tc="${k}">${l}</button>`).join("")}</div>
@@ -1012,6 +1013,7 @@ function viewTutor() {
   $("#tSend")?.addEventListener("click", () => { const v = $("#tIn").value.trim(); if (!v) return toast("떠오르는 만큼 적어 보세요. 모르면 '모르겠어요'도 괜찮아요"); tut.draft = ""; tutSend(v); });
   $("#tIn")?.addEventListener("input", e => tut.draft = e.target.value);
   $("#tReveal")?.addEventListener("click", () => tutSend("[정답 보기]"));
+  $("#tRetry")?.addEventListener("click", () => { const r = tut.retry; tut.err = null; if (r) tutSend(r.text, r.hidden); });
   $("#tNext")?.addEventListener("click", () => done ? (tutFinish(), viewTutor()) : tutSend("[다음 문제]", true));
   $("#tQuit")?.addEventListener("click", () => { if (confirm("AI 튜터를 그만할까요? 지금까지 푼 문제는 기록돼요.")) { tutFinish(); tut = null; viewTutor(); } });
   $("#tEnd")?.addEventListener("click", () => { tut = null; viewTutor(); });
@@ -1027,7 +1029,7 @@ function viewTutor() {
 async function tutSend(text, hidden) {
   if (!tut || tut.busy) return;
   const isAns = !hidden && text !== "[정답 보기]";
-  tut.turns.push({ role: "user", text, hidden }); tut.busy = true; viewTutor();
+  tut.turns.push({ role: "user", text, hidden }); tut.busy = true; tut.err = null; viewTutor();
   try {
     const r = await fetch(TUTOR_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ secs: tut.secs, turns: tut.turns.map(t => t.role === "user" ? { role: "user", text: t.text } : { role: "assistant", data: t.data }), due: tut.due }) });
     const j = await r.json().catch(() => ({}));
@@ -1038,7 +1040,8 @@ async function tutSend(text, hidden) {
     if (j.finished && tut.cur && !tut.cur.done) { tut.cur.done = true; tut.res.push({ q: tut.cur.q || j.question, v: tut.cur.v || "wrong", conf: tut.cur.conf, ref: tut.cur.ref || j.ref }); tut.conf = null; }
   } catch (e) {
     const u = tut.turns.pop(); if (isAns) tut.draft = u.text;
-    toast(e.message);
+    tut.err = e.message === "Failed to fetch" || e.name === "TypeError" ? "서버에 닿지 못했어요. 인터넷 연결을 확인하거나 잠시 뒤 다시 해 주세요." : e.message;
+    tut.retry = isAns ? null : { text, hidden };
   }
   tut.busy = false; if (tab === "tutor") viewTutor();
 }

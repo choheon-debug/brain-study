@@ -97,6 +97,7 @@ export default async function handler(req, res) {
   const messages = [{ role: "user", content: start }, ...c.messages];
   // 첫 메시지 두 개가 연달아 user면 API가 하나로 합쳐 주므로 그대로 둔다
 
+  if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: "서버에 AI 키가 아직 없어요. Vercel의 Environment Variables에 ANTHROPIC_API_KEY를 넣고 Redeploy 해 주세요." });
   try {
     client ||= new Anthropic();
     const r = await client.beta.messages.create({
@@ -117,7 +118,8 @@ export default async function handler(req, res) {
   } catch (e) {
     if (e instanceof Anthropic.RateLimitError) return res.status(429).json({ error: "지금 사용하는 사람이 많아요. 잠시 뒤 다시 해 주세요." });
     if (e instanceof Anthropic.AuthenticationError) return res.status(500).json({ error: "서버 설정(키)에 문제가 있어요. 앱 관리자에게 알려 주세요." });
-    if (e instanceof Anthropic.APIError) return res.status(502).json({ error: `튜터 연결에 문제가 생겼어요 (${e.status}). 잠시 뒤 다시 해 주세요.` });
-    return res.status(500).json({ error: "튜터 연결에 실패했어요. 인터넷을 확인하고 다시 해 주세요." });
+    if (e instanceof Anthropic.APIError) { console.error("anthropic", e.status, e.message); return res.status(502).json({ error: `AI 연결에 문제가 생겼어요 (${e.status}): ${String(e.message).slice(0, 120)}` }); }
+    console.error("tutor error", e);
+    return res.status(500).json({ error: `튜터 서버에서 문제가 생겼어요: ${String(e?.message || e).slice(0, 120)}` });
   }
 }
